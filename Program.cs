@@ -111,8 +111,8 @@ namespace SampleApiCall
         private static string GetToken()
         {
             //Key and Secret given to you
-            string clientKey = "3f7c63b1-9226-4606-8a49-4119c427e457";
-            string clientSecret = "ef088700-d8d2-4309-9dd3-19b10c34b961";
+            string clientKey = "3f7c63b1-9226-4606-8a49-4119c427e458";
+            string clientSecret = "ef088700-d8d2-4309-9dd3-19b10c34b962";
 
             var tokenResponse = GetAuthorizationToken(clientKey, clientSecret);
 
