@@ -1,188 +1,121 @@
-﻿using System;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Net.Http;
-using System.Configuration;
-using System.Threading.Tasks;
-using System.Text.Json;
+﻿using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using RestSharp;
+using System;
 using System.Collections.Generic;
+using System.IO;
 
-namespace SampleApiCall
+namespace CicPlus.Api.Samples
 {
-    static class Program
+    class Program
     {
-        static void Main()
+        private static IConfiguration config;
+        private static string authorizationToken;
+        public static void Main(string[] args)
         {
-            Console.WriteLine("hit any key to exit...");
-            Console.WriteLine("");
-            Console.WriteLine("Getting Authorization Token");
-            Console.WriteLine("");
+            config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
 
-            string token = GetToken();
+            authorizationToken = GetAuthorizationToken("[YOUR USER NAME]", "[YOUR PASSWORD]", "[YOUR COMPANY URL SUFFIX]");
 
-            Console.WriteLine(token);
+            var samples = GetSamples();
 
-            Console.WriteLine("");
-
-            Console.WriteLine("Make Request To Authentication Service");
-
-            MakeRequestToAuthenticationService();
-
-
-            Console.ReadKey();
-        }
-
-        static async void MakeRequestToEchoApi()
-        {
-            var client = new HttpClient();
-
-            //Your Subscription Key
-            string subscriptionKey = "1f02e6fc6f594399bfa9e61e61fefeec";
-
-            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", subscriptionKey);
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            //The URL of the end point you subscribed to
-            var url = "https://cicplus.azure-api.net/echo/resource";
-
-            //Echo API body
-            string requestBody = "{\"vehicleType\": \"train\", \"maxSpeed\": 125, \"avgSpeed\": 90, \"speedUnit\": \"mph\"}";  
-            byte[] byteData = Encoding.UTF8.GetBytes(requestBody);
-
-            using (var content = new ByteArrayContent(byteData))
+            if (samples != null && samples.Count > 0)
             {
-                HttpResponseMessage response = await client.PostAsync(url, content);
+                Console.WriteLine("Pay Statement Samples:");
 
-                Console.WriteLine(response.StatusCode.ToString());
-                
-            }
-
-        }
-
-        static async void MakeRequestToAuthenticationService()
-        {
-            var authorizationToken = GetToken();
-
-            var client = new HttpClient();
-
-            //Your Subscription Key
-            string subscriptionKey = "1f02e6fc6f594399bfa9e61e61fefeec";
-
-            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", subscriptionKey);
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", authorizationToken);
-
-            client.DefaultRequestHeaders.Referrer = new Uri("http://SampleApiCall");   // required header
-
-            //The URL of the Authentication End Point 
-            var url = "https://cicplus.azure-api.net/AuthenticationData/AuthenticationData/UserList";
-
-            //Echo API body
-            StringBuilder sb = new StringBuilder();
-            sb.Append("{");
-            sb.Append("     \"Version\": \"1\",");
-            sb.Append("     \"ValidateFlag\": true,");
-            sb.Append("     \"AllowNoAuth\": true,");
-            sb.Append("     \"CommitFlag\": true,");
-            sb.Append("     \"Employee\": [");
-            sb.Append("         {");
-            sb.Append("             \"EmployeeId\": \"abc\",");
-            sb.Append("             \"AuthValue1\": \"abc\",");
-            sb.Append("             \"AuthValue2\": \"abc\",");
-            sb.Append("             \"EmployeeStatus\": \"A\"");
-            sb.Append("         }");
-            sb.Append("     ]");
-            sb.Append("}");
-
-            string requestBody = sb.ToString();
-
-            using (var content = new StringContent(requestBody, Encoding.UTF8, "application/json"))
-            {
-                HttpResponseMessage response = await client.PostAsync(url, content);
-
-                string responseBody = await response.Content.ReadAsStringAsync();
-
-                Console.WriteLine(responseBody);
-
-            }
-        }
-
-
-        private static string GetToken()
-        {
-            //Key and Secret given to you
-            string clientKey = "3f7c63b1-9226-4606-8a49-4119c427e458";
-            string clientSecret = "ef088700-d8d2-4309-9dd3-19b10c34b962";
-
-            var tokenResponse = GetAuthorizationToken(clientKey, clientSecret);
-
-            return tokenResponse?.access_token;
-        }
-
-        private static TokenResponse GetAuthorizationToken(string key, string secret)
-        {
-            //Your Subscription Key
-            string subscriptionKey = "1f02e6fc6f594399bfa9e61e61fefeec";
-
-            //The URL of the Authorization End Point 
-            var authorizationApiUrl = "https://cicplus.azure-api.net/authorization/api/authorize";
-
-            string url = string.Format("{0}?grant_type={1}&scope={2}&state={3}&redirect_uri={4}",
-                authorizationApiUrl,
-                "client_credentials",
-                "ACA PAYSTATEMENT EFORM YEAREND",
-                DateTime.Now,
-                "paperlessemployee.com/api");
-
-            string identifier = string.Format("{0}:{1}", key, secret);
-            byte[] bytes = Encoding.ASCII.GetBytes(identifier);
-            string clientIdentifier = Convert.ToBase64String(bytes);
-
-            TokenResponse tokenResponse = null;
-            try
-            {
-                using (var client = new HttpClient())
+                foreach (PayStatementSample sample in samples)
                 {
-                    client.BaseAddress = new Uri(authorizationApiUrl);
-
-                    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("basic", clientIdentifier);
-
-                    client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", subscriptionKey);
-
-                    var postTask = client.PostAsync(url, null);
-                    postTask.Wait();
-
-                    var result = postTask.Result;
-                    if (result.IsSuccessStatusCode)
-                    {
-                        var readTask = result.Content.ReadAsStringAsync();
-                        readTask.Wait();
-                        tokenResponse = JsonSerializer.Deserialize<TokenResponse>(readTask.Result);
-                    }
-                    else
-                    {
-                        Console.WriteLine(result.Content.ReadAsStringAsync().Result);
-                    }
+                    Console.WriteLine("Name: " + sample.Name);
+                    Console.WriteLine("Description: " + sample.Description);
+                    Console.WriteLine("~");
                 }
             }
-            catch (Exception e)
+
+            string sampleName = "[SAMPLE NAME]";
+            var result = GetSamplePayStatement(sampleName);
+
+            if(result != null)
             {
-                Console.Error.WriteLine(string.Format("GetAuthorizationToken failed: {0}", e.Message));
+                string path = "c:/" + sampleName + ".pdf";
+
+                File.WriteAllBytes(path, result);
+                Console.WriteLine("Sample Pay Statement can be found at " + path);
             }
 
-            return tokenResponse;
         }
+        public static string GetAuthorizationToken(string userName, string userPassword, string companyUrlSuffix)
+        {
+            IRestClient client = new RestClient();
 
+            string authorizationEndPoint = config["AuthorizationServiceEndPoint"];
+            var endpoint = string.Concat(authorizationEndPoint, "/api/authorize/token");
 
+            client.BaseUrl = new Uri(endpoint);
+            IRestRequest req = new RestRequest(endpoint, Method.GET);
+
+            req.AddParameter("userName", userName);
+            req.AddParameter("userPassword", userPassword);
+            req.AddParameter("companyUrlSuffix", companyUrlSuffix);
+
+            IRestResponse<string> response = client.Execute<string>(req);
+
+            return response.Data;
+        }
+        public static List<PayStatementSample> GetSamples()
+        {
+            List<PayStatementSample> result = new List<PayStatementSample>();
+
+            IRestClient client = new RestClient();
+
+            string payStatementServiceEndPoint = config["PayStatementServiceEndPoint"];
+            var endpoint = string.Concat(payStatementServiceEndPoint, "/api/PayStatement/samples");
+
+            client.BaseUrl = new Uri(endpoint);
+            IRestRequest req = new RestRequest(endpoint, Method.GET);
+            req.AddHeader("Authorization", "bearer " + authorizationToken);
+
+            IRestResponse response = client.Execute(req);
+
+            if (response.IsSuccessful)
+            {
+                result = JsonConvert.DeserializeObject<List<PayStatementSample>>(response.Content);
+                return result;
+            }
+            else
+            {
+                Console.WriteLine("Error retreiving sample Pay Statements: " + response.Content);
+                return null;
+            }
+
+        }
+        public static byte[] GetSamplePayStatement(string sampleName)
+        {
+            IRestClient client = new RestClient();
+
+            string payStatementServiceEndPoint = config["PayStatementServiceEndPoint"];
+            var endpoint = string.Concat(payStatementServiceEndPoint, "/api/PayStatement/samples/pdf");
+
+            client.BaseUrl = new Uri(endpoint);
+            IRestRequest req = new RestRequest(endpoint, Method.GET);
+            req.AddHeader("Authorization", "bearer " + authorizationToken);
+            req.AddParameter("sampleName", sampleName);
+
+            IRestResponse response = client.Execute(req);
+
+            if(response.IsSuccessful)
+            {
+                return response.RawBytes;
+            }
+            else
+            {
+                Console.WriteLine("Error retreiving sample Pay Statement: " + response.Content);
+                return null;
+            }
+        }
+        public class PayStatementSample
+        {
+            public string Name { get; set; }
+            public string Description { get; set; }
+        }
     }
-
-    class TokenResponse
-    {
-        public string access_token { get; set; }
-        public string token_type { get; set; }
-        public string state { get; set; }
-
-    }
-
 }
